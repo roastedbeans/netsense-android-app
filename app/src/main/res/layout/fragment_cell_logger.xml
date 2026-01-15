@@ -53,6 +53,12 @@
                 <!-- Header Row -->
                 <TableRow>
                     <TextView
+                        android:text="Timestamp"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
                         android:text="Net"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
@@ -60,18 +66,6 @@
                         android:padding="8dp"/>
                     <TextView
                         android:text="Connection Status"
-                        android:layout_margin="4dp"
-                        android:background="#D1C4E9"
-                        android:textColor="@color/black"
-                        android:padding="8dp"/>
-                    <TextView
-                        android:text="Sig Str"
-                        android:layout_margin="4dp"
-                        android:background="#D1C4E9"
-                        android:textColor="@color/black"
-                        android:padding="8dp"/>
-                    <TextView
-                        android:text="Timestamp"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
@@ -137,12 +131,6 @@
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="RSSI"
-                        android:layout_margin="4dp"
-                        android:background="#D1C4E9"
-                        android:textColor="@color/black"
-                        android:padding="8dp"/>
-                    <TextView
                         android:text="RSRP"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
@@ -160,38 +148,95 @@
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
+                    <!-- Neighboring Cell 1 Columns -->
                     <TextView
-                        android:text="SSRSRP"
+                        android:text="nc1_rsrp"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="SSRSRQ"
+                        android:text="nc1_pci"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="SSSINR"
+                        android:text="nc1_rsrq"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="CSIRSRP"
+                        android:text="nc1_sinr"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="CSIRSRQ"
+                        android:text="nc1_freq"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <!-- Neighboring Cell 2 Columns -->
+                    <TextView
+                        android:text="nc2_rsrp"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"
                         android:padding="8dp"/>
                     <TextView
-                        android:text="CSISINR"
+                        android:text="nc2_pci"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc2_rsrq"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc2_sinr"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc2_freq"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <!-- Neighboring Cell 3 Columns -->
+                    <TextView
+                        android:text="nc3_rsrp"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc3_pci"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc3_rsrq"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc3_sinr"
+                        android:layout_margin="4dp"
+                        android:background="#D1C4E9"
+                        android:textColor="@color/black"
+                        android:padding="8dp"/>
+                    <TextView
+                        android:text="nc3_freq"
                         android:layout_margin="4dp"
                         android:background="#D1C4E9"
                         android:textColor="@color/black"

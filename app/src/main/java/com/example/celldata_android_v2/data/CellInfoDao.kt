@@ -11,7 +11,7 @@ interface CellInfoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllCellInfo(cellInfoList: List<CellInfoEntity>)
 
-    @Query("SELECT * FROM cell_info")
+    @Query("SELECT * FROM cell_info ORDER BY id DESC")
     suspend fun getAllCellInfo(): List<CellInfoEntity>
 
     @Query("SELECT * FROM cell_info WHERE mcc = :mcc")

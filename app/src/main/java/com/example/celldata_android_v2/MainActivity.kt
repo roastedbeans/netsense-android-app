@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -17,18 +18,25 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import com.example.celldata_android_v2.databinding.ActivityMainBinding
 import com.example.celldata_android_v2.ui.cellinfo.CellInfoFragment
+import com.example.celldata_android_v2.ui.cellinfo.CellInfoViewModel
 import com.example.celldata_android_v2.ui.celllogger.CellLoggerFragment
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+    private lateinit var cellInfoViewModel: CellInfoViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Initialize ViewModel at Activity level so it persists across fragment changes
+        // This ensures data collection runs continuously regardless of which tab is visible
+        cellInfoViewModel = ViewModelProvider(this)[CellInfoViewModel::class.java]
 
         setupBottomNavigation()
         setupWindowInsets()
@@ -42,11 +50,24 @@ class MainActivity : AppCompatActivity() {
         checkAndRequestPermissions()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onStart() {
         super.onStart()
         if (hasRequiredPermissions()) {
             startBackgroundService()
+            // Start data collection when permissions are granted
+            // This runs continuously regardless of which tab is visible
+            cellInfoViewModel.startUpdates()
+            Log.d("MainActivity", "Started continuous data collection")
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Stop data collection when activity is stopped (app goes to background)
+        // This conserves resources when app is not visible
+        cellInfoViewModel.stopUpdates()
+        Log.d("MainActivity", "Stopped data collection")
     }
 
     private fun createNotificationChannel() {
@@ -64,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun startBackgroundService() {
         val serviceIntent = Intent(this, BackgroundService::class.java).apply {
             action = BackgroundService.ACTION_START_SERVICE
@@ -114,34 +136,63 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.READ_PHONE_STATE
-        )
+        val permissions = mutableListOf<String>()
+
+        // NetMonster requires BOTH ACCESS_FINE_LOCATION AND ACCESS_COARSE_LOCATION
+        // Request both for maximum compatibility
+        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        permissions.add(Manifest.permission.READ_PHONE_STATE)
 
         // Add notification permission for Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
 
+        // Add background location for Android 10+ if needed for background service
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Note: ACCESS_BACKGROUND_LOCATION requires special handling
+            // Only request if user has already granted foreground location
+        }
+
         if (!hasRequiredPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
         } else if (hasRequiredPermissions()) {
-            getCurrentCellInfoFragment()?.onPermissionsGranted()
-            startBackgroundService()
+            // Start data collection immediately when permissions are already granted
+            cellInfoViewModel.startUpdates()
+            Log.d("MainActivity", "Started data collection - permissions already granted")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startBackgroundService()
+            }
         }
     }
 
     private fun hasRequiredPermissions(): Boolean {
-        val basicPermissions = ContextCompat.checkSelfPermission(
+        val hasPhoneState = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.READ_PHONE_STATE
+        ) == PackageManager.PERMISSION_GRANTED
+
+        // NetMonster requires BOTH ACCESS_FINE_LOCATION AND ACCESS_COARSE_LOCATION
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_PHONE_STATE
-                ) == PackageManager.PERMISSION_GRANTED
+        ) == PackageManager.PERMISSION_GRANTED
+
+        // For Android 10+, ACCESS_FINE_LOCATION is required
+        // For older devices, at least ACCESS_COARSE_LOCATION is needed
+        val hasLocationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            hasFineLocation // Android 10+ requires fine location
+        } else {
+            hasCoarseLocation || hasFineLocation // Older devices can use either
+        }
+
+        val basicPermissions = hasPhoneState && hasLocationPermission
 
         // Check notification permission on Android 13+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -154,10 +205,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getCurrentCellInfoFragment(): CellInfoFragment? {
-        return supportFragmentManager.findFragmentById(R.id.fragment_container) as? CellInfoFragment
+    /**
+     * Gets the shared ViewModel instance for use in fragments.
+     * This ensures both CellInfoFragment and CellLoggerFragment observe the same data source.
+     */
+    fun getCellInfoViewModel(): CellInfoViewModel {
+        return cellInfoViewModel
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -167,7 +223,9 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             PERMISSION_REQUEST_CODE -> {
                 if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    getCurrentCellInfoFragment()?.onPermissionsGranted()
+                    // Start data collection when permissions are granted
+                    cellInfoViewModel.startUpdates()
+                    Log.d("MainActivity", "Started data collection - permissions granted by user")
                     startBackgroundService()
                 }
             }

@@ -2,6 +2,7 @@ package com.example.celldata_android_v2.ui.cellinfo
 
 import com.example.celldata_android_v2.data.DatabaseProvider
 import com.example.celldata_android_v2.data.CellInfoEntity
+import com.example.celldata_android_v2.data.CellDataCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -10,6 +11,9 @@ import android.util.AttributeSet
 import android.util.Log
 import android.widget.LinearLayout
 import cz.mroczis.netmonster.core.model.cell.*
+import cz.mroczis.netmonster.core.model.connection.PrimaryConnection
+import cz.mroczis.netmonster.core.model.connection.SecondaryConnection
+import cz.mroczis.netmonster.core.model.connection.NoneConnection
 import cz.mroczis.netmonster.core.model.signal.SignalCdma
 import cz.mroczis.netmonster.core.model.signal.SignalGsm
 import cz.mroczis.netmonster.core.model.signal.SignalLte
@@ -56,35 +60,23 @@ class CellView @JvmOverloads constructor(
          * Usage: Automatically called by transformer when LTE cell is detected
          */
         override fun processLte(cell: CellLte) {
-            cell.network?.let { addView("NET", "LTE") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
-            addView("BandWidth", cell.bandwidth.toString())
+            cell.network?.let { addView("NETWORK", "LTE") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.eci?.let { addView("ECI", it) }
-            cell.enb?.let { addView("eNb", it) }
-            cell.cid?.let { addView("CID", it) }
-            cell.tac?.let { addView("TAC", it) }
-            cell.pci?.let { addView("PCI", it) }
-            cell.bandwidth?.let { addView("BW", it) }
-            cell.aggregatedBands.joinToString { "${it.name} (#${it.number})" }.takeIf { it.isNotEmpty() }?.let {
-                addView("Agg. Bands", it)
-            }
+
+            // Prioritize RSRP information
             cell.signal.let { signal ->
-                signal.rssi?.let { addView("RSSI", it) }
-                signal.rsrp?.let { addView("RSRP", it) }
-                signal.rsrq?.let { addView("RSRQ", it) }
-                signal.cqi?.let { addView("CQI", it) }
-                signal.timingAdvance?.let { addView("TA", it) }
-                signal.snr?.let { addView("SNR", it) }
+                signal.rsrp?.let { addView("🔴 RSRP", "$it dBm") }
                 val signalStrength = calculateLteSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            // Additional LTE-specific info
+            cell.pci?.let { addView("PCI", it.toString()) }
+            cell.tac?.let { addView("TAC", it.toString()) }
+            cell.signal.rsrq?.let { addView("RSRQ", "$it dB") }
+            cell.signal.snr?.let { addView("SNR", "$it dB") }
         }
 
         /**
@@ -100,125 +92,93 @@ class CellView @JvmOverloads constructor(
          * Usage: Automatically called by transformer for 5G NR cells
          */
         override fun processNr(cell: CellNr) {
-            cell.network?.let { addView("NET", "5G NR") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
+            cell.network?.let { addView("NETWORK", "5G NR") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.nci?.let { addView("NCI", it) }
-            cell.tac?.let { addView("TAC", it) }
-            cell.pci?.let { addView("PCI", it) }
+
+            // Prioritize RSRP information for 5G NR
             cell.signal.let { signal ->
-                signal.csiRsrp?.let { addView("CSI RSRP", it) }
-                signal.csiRsrq?.let { addView("CSI RSRQ", it) }
-                signal.csiSinr?.let { addView("CSI SINR", it) }
-                signal.ssRsrp?.let { addView("SS RSRP", it) }
-                signal.ssRsrq?.let { addView("SS RSRQ", it) }
-                signal.ssSinr?.let { addView("SS SINR", it) }
+                signal.ssRsrp?.let { addView("🔴 SS-RSRP", "$it dBm") }
+                signal.csiRsrp?.let { addView("🔵 CSI-RSRP", "$it dBm") }
                 val signalStrength = calculateNrSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            // Additional NR-specific info
+            cell.pci?.let { addView("PCI", it.toString()) }
+            cell.tac?.let { addView("TAC", it.toString()) }
+            cell.signal.ssRsrq?.let { addView("SS-RSRQ", "$it dB") }
+            cell.signal.ssSinr?.let { addView("SS-SINR", "$it dB") }
         }
 
         override fun processCdma(cell: CellCdma) {
-            cell.network?.let { addView("NET", "CDMA") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
+            cell.network?.let { addView("NETWORK", "CDMA") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.nid?.let { addView("NID", it) }
-            cell.bid?.let { addView("BID", it) }
-            cell.lat?.let { addView("LAT", it) }
-            cell.lon?.let { addView("LON", it) }
+
+            // CDMA uses RSSI
             cell.signal.let { signal ->
-                signal.cdmaEcio?.let { addView("CD EC/IO", it) }
-                signal.cdmaRssi?.let { addView("CD RSSI", it) }
-                signal.evdoEcio?.let { addView("EV EC/IO", it) }
-                signal.evdoRssi?.let { addView("EV RSSI", it) }
-                signal.evdoSnr?.let { addView("EV SNR", it) }
+                signal.cdmaRssi?.let { addView("📶 CD RSSI", "$it dBm") }
+                signal.evdoRssi?.let { addView("📶 EV RSSI", "$it dBm") }
                 val signalStrength = calculateCdmaSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            cell.nid?.let { addView("NID", it.toString()) }
+            cell.bid?.let { addView("BID", it.toString()) }
         }
 
         override fun processGsm(cell: CellGsm) {
-            cell.network?.let { addView("NET", "GSM") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
+            cell.network?.let { addView("NETWORK", "GSM") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.cid?.let { addView("CID", it) }
-            cell.lac?.let { addView("LAC", it) }
-            cell.bsic?.let { addView("BSIC", it) }
+
+            // GSM uses RSSI instead of RSRP
             cell.signal.let { signal ->
-                signal.rssi?.let { addView("RSSI", it) }
-                signal.bitErrorRate?.let { addView("BER", it) }
-                signal.timingAdvance?.let { addView("TA", it) }
+                signal.rssi?.let { addView("📶 RSSI", "$it dBm") }
                 val signalStrength = calculateGsmSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            cell.lac?.let { addView("LAC", it.toString()) }
+            cell.cid?.let { addView("CID", it.toString()) }
         }
 
         override fun processTdscdma(cell: CellTdscdma) {
-            cell.network?.let { addView("NET", "TDS-CDMA") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
+            cell.network?.let { addView("NETWORK", "TD-SCDMA") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.ci?.let { addView("CI", it) }
-            cell.rnc?.let { addView("RNC", it) }
-            cell.cid?.let { addView("CID", it) }
-            cell.lac?.let { addView("LAC", it) }
-            cell.cpid?.let { addView("CPID", it) }
+
+            // TD-SCDMA uses RSCP
             cell.signal.let { signal ->
-                signal.rssi?.let { addView("RSSI", it) }
-                signal.bitErrorRate?.let { addView("BER", it) }
-                signal.rscp?.let { addView("RSCP", it) }
+                signal.rscp?.let { addView("🔴 RSCP", "$it dBm") }
                 val signalStrength = calculateTdscdmaSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            cell.cpid?.let { addView("CPID", it.toString()) }
+            cell.lac?.let { addView("LAC", it.toString()) }
         }
 
         override fun processWcdma(cell: CellWcdma) {
-            cell.network?.let { addView("NET", "WCDMA") }
-            addView("Connection Status", cell.connectionStatus.javaClass.simpleName)
+            cell.network?.let { addView("NETWORK", "WCDMA") }
             cell.band?.let { band ->
-                addView("FREQUENCY", "${band.channelNumber} (#${band.number}, ${band.name})")
+                addView("BAND", "${band.name} (#${band.number})")
             }
-            cell.timestamp?.let { addView("Timestamp", it) }
-            cell.network?.mcc?.let {addView("MCC", it)}
-            cell.network?.mnc?.let {addView("MNC", it)}
-            cell.network?.iso?.let {addView("ISO", it)}
-            cell.ci?.let { addView("CI", it) }
-            cell.rnc?.let { addView("RNC", it) }
-            cell.cid?.let { addView("CID", it) }
-            cell.lac?.let { addView("LAC", it) }
-            cell.psc?.let { addView("PSC", it) }
+
+            // WCDMA uses RSCP (similar to RSRP)
             cell.signal.let { signal ->
-                signal.rssi?.let { addView("RSSI", it) }
-                signal.bitErrorRate?.let { addView("BER", it) }
-                signal.rscp?.let { addView("RSCP", it) }
-                signal.ecio?.let { addView("ECIO", it) }
-                signal.ecno?.let { addView("ECNO", it) }
+                signal.rscp?.let { addView("🔴 RSCP", "$it dBm") }
                 val signalStrength = calculateWcdmaSignalStrength(signal)
-                addView("Signal Strength", signalStrength)
+                addView("SIGNAL STRENGTH", signalStrength)
             }
+
+            cell.psc?.let { addView("PSC", it.toString()) }
+            cell.lac?.let { addView("LAC", it.toString()) }
         }
     }
 
@@ -229,7 +189,7 @@ class CellView @JvmOverloads constructor(
      * Purpose:
      * - Processes incoming cell signal information
      * - Updates the visual display
-     * - Triggers database storage
+     * - Triggers temporary cache storage
      *
      * Usage:
      * cellView.bind(cellData)
@@ -239,29 +199,44 @@ class CellView @JvmOverloads constructor(
 
     fun bind (cell: ICell) {
         removeAllViews()
+
+        // Add cell type header based on connection status
+        when (cell.connectionStatus) {
+            is PrimaryConnection -> {
+                addView("CELL TYPE", "SERVING CELL")
+            }
+            is SecondaryConnection -> {
+                addView("CELL TYPE", "SECONDARY CELL")
+            }
+            is NoneConnection -> {
+                addView("CELL TYPE", "NEIGHBORING CELL")
+            }
+            else -> {
+                addView("CELL TYPE", "UNKNOWN")
+            }
+        }
+
         cell.let(transformer)
 
         val cellInfoEntity = mapToCellInfoEntity(cell)
-        saveToDatabase(cellInfoEntity)
+        saveToCache(cellInfoEntity)
     }
 
     /**
-     * saveToDatabase(cellInfoEntity: CellInfoEntity)
-     * Persists cell information asynchronously.
+     * saveToCache(cellInfoEntity: CellInfoEntity)
+     * Stores cell information in temporary in-memory cache.
      *
      * Implementation:
-     * - Uses Kotlin Coroutines for async operation
-     * - Runs on IO dispatcher for optimal performance
-     * - Handles database operations safely
+     * - Uses thread-safe CellDataCache singleton
+     * - Data is stored temporarily and will be saved to database only when export is pressed
+     * - Data is lost when app is restarted
      *
      * Usage:
-     * saveToDatabase(entityData)
+     * saveToCache(entityData)
      */
-    private fun saveToDatabase(cellInfoEntity: CellInfoEntity) {
-        CoroutineScope(Dispatchers.IO).launch {
-            Log.d("CellView", "Saving to database: $cellInfoEntity")
-            dao.insertCellInfo(cellInfoEntity)
-        }
+    private fun saveToCache(cellInfoEntity: CellInfoEntity) {
+        Log.d("CellView", "Saving to cache: $cellInfoEntity")
+        CellDataCache.addCellInfo(cellInfoEntity)
     }
 
     /**
@@ -351,12 +326,13 @@ class CellView @JvmOverloads constructor(
             is CellCdma -> {
                 val signal = cell.signal
                 val network = cell.network
-                val band = cell.band
+                // CDMA band information not typically available in CellInfoEntity format
+                val frequency = cell.band?.channelNumber?.toString() ?: "N/A"
 
                 CellInfoEntity(
                     net = "CDMA",
                     connectionStatus = cell.connectionStatus.javaClass.simpleName.orEmpty(),
-                    frequency = "N/A",
+                    frequency = frequency,
                     bandWidth = "N/A",
                     mcc = network?.mcc.orEmpty(),
                     mnc = network?.mnc.orEmpty(),
@@ -384,12 +360,13 @@ class CellView @JvmOverloads constructor(
             is CellWcdma -> {
                 val signal = cell.signal
                 val network = cell.network
-                val band = cell.band
+                // Use band channel number (UARFCN) as frequency identifier
+                val frequency = cell.band?.let { "${it.name ?: "Band ${it.number ?: "N/A"}"} (UARFCN: ${it.channelNumber})" } ?: "N/A"
 
                 CellInfoEntity(
                     net = "WCDMA",
                     connectionStatus = cell.connectionStatus.javaClass.simpleName.orEmpty(),
-                    frequency = "N/A",
+                    frequency = frequency,
                     bandWidth = "N/A",
                     mcc = network?.mcc.orEmpty(),
                     mnc = network?.mnc.orEmpty(),
@@ -417,12 +394,13 @@ class CellView @JvmOverloads constructor(
             is CellTdscdma -> {
                 val signal = cell.signal
                 val network = cell.network
-                val band = cell.band
+                // Use band channel number (UARFCN) as frequency identifier
+                val frequency = cell.band?.let { "${it.name ?: "Band ${it.number ?: "N/A"}"} (UARFCN: ${it.channelNumber})" } ?: "N/A"
 
                 CellInfoEntity(
                     net = "TDS-CDMA",
                     connectionStatus =  cell.connectionStatus.javaClass.simpleName.orEmpty(),
-                    frequency = "N/A",
+                    frequency = frequency,
                     bandWidth = "N/A",
                     mcc = network?.mcc.orEmpty(),
                     mnc = network?.mnc.orEmpty(),
@@ -450,12 +428,13 @@ class CellView @JvmOverloads constructor(
             is CellGsm -> {
                 val signal = cell.signal
                 val network = cell.network
-                val band = cell.band
+                // Use band channel number (ARFCN) as frequency identifier
+                val frequency = cell.band?.let { "${it.name ?: "Band ${it.number ?: "N/A"}"} (ARFCN: ${it.channelNumber})" } ?: "N/A"
 
                 CellInfoEntity(
                     net = "GSM",
                     connectionStatus =  cell.connectionStatus.javaClass.simpleName.orEmpty(),
-                    frequency = "N/A",
+                    frequency = frequency,
                     bandWidth = "N/A",
                     mcc = network?.mcc.orEmpty(),
                     mnc = network?.mnc.orEmpty(),
